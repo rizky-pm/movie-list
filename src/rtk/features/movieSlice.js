@@ -7,6 +7,7 @@ const initialState = {
   isFetching: false,
   movies: [],
   error: '',
+  page: 2,
 };
 
 export const fetchMovie = createAsyncThunk('movie/fetchMovie', async (data) => {
@@ -14,11 +15,20 @@ export const fetchMovie = createAsyncThunk('movie/fetchMovie', async (data) => {
 
   return axios
     .get(API_URL + '?apikey=' + API_KEY + '&s=' + searchQuery + '&page=' + page)
-    .then((response) => response.data.Search);
+    .then((response) => {
+      console.log(response);
+      if (response.data.Response === 'True') {
+        console.log('Movie Found');
+        return response.data.Search;
+      } else {
+        console.log('Movie Not Found');
+        return response.data.Error;
+      }
+    });
 });
 
-export const newFetchMovie = createAsyncThunk(
-  'movie/newFetchMovie',
+export const fetchMoreMovie = createAsyncThunk(
+  'movie/fetchMoreMovie',
   async (data) => {
     const { page, searchQuery } = data;
 
@@ -33,6 +43,11 @@ export const newFetchMovie = createAsyncThunk(
 const movieSlice = createSlice({
   name: 'movie',
   initialState,
+  reducers: {
+    resetPage: (state) => {
+      state.page = 2;
+    },
+  },
   extraReducers: (builder) => {
     builder.addCase(fetchMovie.pending, (state) => {
       state.isFetching = true;
@@ -40,32 +55,43 @@ const movieSlice = createSlice({
 
     builder.addCase(fetchMovie.fulfilled, (state, action) => {
       state.isFetching = false;
-      state.movies = [...state.movies, action.payload].flat();
+      state.movies = action.payload;
       state.error = '';
+      state.page = 2;
     });
 
     builder.addCase(fetchMovie.rejected, (state, action) => {
       state.isFetching = false;
       state.movies = [];
       state.error = action.error.message;
+      state.page = 2;
     });
 
-    builder.addCase(newFetchMovie.pending, (state) => {
+    builder.addCase(fetchMoreMovie.pending, (state) => {
       state.isFetching = true;
     });
 
-    builder.addCase(newFetchMovie.fulfilled, (state, action) => {
+    builder.addCase(fetchMoreMovie.fulfilled, (state, action) => {
       state.isFetching = false;
-      state.movies = action.payload;
+      state.movies = [...state.movies, ...action.payload].flat();
       state.error = '';
+      state.page = state.page + 2;
     });
 
-    builder.addCase(newFetchMovie.rejected, (state, action) => {
+    builder.addCase(fetchMoreMovie.rejected, (state, action) => {
       state.isFetching = false;
       state.movies = [];
       state.error = action.error.message;
+      state.page = 2;
     });
   },
 });
 
+console.log(movieSlice.actions);
+
 export default movieSlice.reducer;
+export const movieActions = {
+  ...movieSlice.actions,
+  fetchMovie,
+  fetchMoreMovie,
+};
